@@ -12,43 +12,48 @@ export class RegisterPage {
   private readonly privacyPolicyCheckbox: Locator;
   private readonly continueButton: Locator;
   private readonly accountCreatedHeading: Locator;
-  private readonly registrationErrors: Locator;
+  private readonly registrationWarning: Locator;
 
   constructor(page: Page) {
     // Initialize locators with CSS selectors
-    this.registerHeading = page.getByRole('heading', { name: 'Register Account' });
-    this.firstNameInput = page.getByLabel('First Name');
-    this.lastNameInput = page.getByLabel('Last Name');
-    this.emailInput = page.getByLabel('E-Mail');
-    this.telephoneInput = page.getByLabel('Telephone');
-    this.passwordInput = page.getByLabel('Password', { exact: true });
-    this.passwordConfirmInput = page.getByLabel('Password Confirm', { exact: true });
+    this.registerHeading = page.getByRole('heading', { name: 'Register Account', exact: true });
+    this.firstNameInput = page.locator('#input-firstname');
+    this.lastNameInput = page.locator('#input-lastname');
+    this.emailInput = page.locator('#input-email');
+    this.telephoneInput = page.locator('#input-telephone');
+    this.passwordInput = page.locator('#input-password');
+    this.passwordConfirmInput = page.locator('#input-confirm');
     this.privacyPolicyCheckbox = page.locator('input[name="agree"]');
-    this.continueButton = page.getByRole('button', { name: 'Continue' });
-    this.accountCreatedHeading = page.getByRole('heading', { name: 'Your Account Has Been Created!' });
-    this.registrationErrors = page.locator(
-      '.alert-danger:visible, .text-danger:visible, .invalid-feedback.d-block:visible',
-    );
+    this.continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+    this.accountCreatedHeading = page.getByRole('heading', {
+      name: 'Your Account Has Been Created!',
+      exact: true,
+    });
+    this.registrationWarning = page.locator('.alert.alert-danger');
   }
 
   /**
-   * Verifies the registration page is displayed.
-   * @returns Promise<boolean> - true if the registration page is displayed
+   * Waits for the registration form.
+   */
+  async waitForRegistrationPage(): Promise<void> {
+    await expect(this.registerHeading, 'The registration form should be displayed').toBeVisible();
+  }
+
+  /**
+   * Verifies the registration form is displayed.
+   * @returns Promise<boolean> - true when the form heading is visible
    */
   async isRegistrationPageExists(): Promise<boolean> {
     return this.registerHeading.isVisible();
   }
 
-  async waitForRegistrationPage(): Promise<void> {
-    await expect(this.registerHeading, 'The registration form should load before filling it').toBeVisible();
-  }
-
   /**
-   * Fills the fields available on the registration form.
+   * Fills required registration data and optional fields supported by this OpenCart version.
    * @param firstName - Customer first name
    * @param lastName - Customer last name
-   * @param email - Customer email address
+   * @param email - Unique customer email
    * @param password - Customer password
+   * @param telephone - Customer telephone when the form provides that field
    */
   async fillRegistrationForm(
     firstName: string,
@@ -73,7 +78,9 @@ export class RegisterPage {
    * Accepts the Privacy Policy.
    */
   async acceptPrivacyPolicy(): Promise<void> {
-    await this.privacyPolicyCheckbox.check();
+    if (await this.privacyPolicyCheckbox.count()) {
+      await this.privacyPolicyCheckbox.check();
+    }
   }
 
   /**
@@ -84,23 +91,29 @@ export class RegisterPage {
   }
 
   /**
+   * Waits for successful registration or returns the actual warning text.
+   * @returns Promise<string> - Empty string on success or the displayed warning
+   */
+  async getRegistrationWarning(): Promise<string> {
+    if (await this.registrationWarning.isVisible()) {
+      return (await this.registrationWarning.innerText()).trim();
+    }
+    return '';
+  }
+
+  /**
    * Waits for the account-created confirmation.
    */
   async waitForAccountCreated(): Promise<void> {
     await expect(
-      this.accountCreatedHeading.or(this.registrationErrors.first()),
-      'Registration should succeed or show a validation error',
+      this.accountCreatedHeading,
+      'OpenCart should show the account-created confirmation',
     ).toBeVisible();
-    if (await this.registrationErrors.first().isVisible()) {
-      const messages = (await this.registrationErrors.allInnerTexts()).join('; ');
-      throw new Error(`Registration failed: ${messages}`);
-    }
-    await expect(this.accountCreatedHeading, 'Registration confirmation should be displayed').toBeVisible();
   }
 
   /**
    * Verifies the account-created confirmation.
-   * @returns Promise<boolean> - true if the confirmation is displayed
+   * @returns Promise<boolean> - true when the confirmation heading is visible
    */
   async isAccountCreated(): Promise<boolean> {
     return this.accountCreatedHeading.isVisible();

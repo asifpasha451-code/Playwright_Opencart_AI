@@ -11,9 +11,16 @@ export class Helper {
   }
 
   static getLoginDetails() {
+    const email = process.env.APP_EMAIL;
+    const password = process.env.APP_PASSWORD;
+
+    if (!email || !password) {
+      throw new Error('APP_EMAIL and APP_PASSWORD must be set in the test environment.');
+    }
+
     return {
-      email: 'pavanol@xyz.com',
-      password: 'test@123',
+      email,
+      password,
     };
   }
 }

@@ -5,7 +5,7 @@ export class HomePage {
 
   // Locators
   private readonly featuredHeading: Locator;
-  private readonly myAccountMenuTrigger: Locator;
+  private readonly myAccountButton: Locator;
   private readonly registerLink: Locator;
   private readonly loginLink: Locator;
   private readonly logoutLink: Locator;
@@ -18,70 +18,98 @@ export class HomePage {
     // Initialize locators with CSS selectors
     this.featuredHeading = page.getByRole('heading', { name: 'Featured' });
     const topBar = page.locator('#top');
-    this.myAccountMenuTrigger = topBar
-      .getByRole('button', { name: 'My Account', exact: true })
-      .or(topBar.locator('a[title="My Account"]'))
-      .first();
-    this.registerLink = page.locator('#top').getByRole('link', { name: 'Register', exact: true });
-    this.loginLink = page.locator('#top').getByRole('link', { name: 'Login', exact: true });
-    this.logoutLink = page.locator('#top').getByRole('link', { name: 'Logout', exact: true });
-    this.searchInput = page.getByRole('textbox', { name: 'Search' });
-    this.shoppingCartLink = page.getByRole('link', { name: 'Shopping Cart', exact: true });
+    this.myAccountButton = topBar.getByRole('button', { name: 'My Account', exact: true });
+    this.registerLink = topBar.getByRole('link', { name: 'Register', exact: true });
+    this.loginLink = topBar.getByRole('link', { name: 'Login', exact: true });
+    this.logoutLink = topBar.getByRole('link', { name: 'Logout', exact: true });
+    this.searchInput = page.getByRole('textbox', { name: 'Search', exact: true });
+    this.shoppingCartLink = topBar.getByRole('link', { name: 'Shopping Cart', exact: true });
   }
 
   /**
-   * Verifies the storefront is displayed.
-   * @returns Promise<boolean> - true if the storefront is displayed
+   * Verifies the OpenCart storefront is displayed.
+   * @returns Promise<boolean> - true when the storefront is visible
    */
   async isHomePageExists(): Promise<boolean> {
     return this.featuredHeading.isVisible();
   }
 
+  /**
+   * Waits for the storefront's featured-products section.
+   */
   async waitForHomePage(): Promise<void> {
-    await expect(this.featuredHeading, 'The storefront should load from WEB_APP_URL').toBeVisible();
+    await expect(this.featuredHeading, 'OpenCart storefront should be displayed').toBeVisible();
   }
 
   /**
-   * Opens the Register page from My Account.
+   * Opens the My Account dropdown.
+   */
+  async clickMyAccount(): Promise<void> {
+    await expect(this.myAccountButton, 'The My Account menu should be visible').toBeVisible();
+    await this.myAccountButton.click();
+  }
+
+  /**
+   * Verifies the account menu trigger is available on the storefront.
+   * @returns Promise<boolean> - true when the My Account trigger is visible
+   */
+  async isMyAccountMenuVisible(): Promise<boolean> {
+    return this.myAccountButton.isVisible();
+  }
+
+  /**
+   * Verifies the logout link is currently visible in the account dropdown.
+   * @returns Promise<boolean> - true when the Logout link is visible
+   */
+  async isLogoutLinkAvailable(): Promise<boolean> {
+    return this.logoutLink.isVisible();
+  }
+
+  /**
+   * Opens the registration page from the My Account dropdown.
    */
   async clickRegister(): Promise<void> {
-    await this.myAccountMenuTrigger.click();
-    await expect(this.registerLink, 'Register should appear in the My Account menu').toBeVisible();
+    await this.clickMyAccount();
+    await expect(this.registerLink, 'Register should be visible in the account menu').toBeVisible();
     await this.registerLink.click();
+    await this.page.waitForURL(/route=account\/register/);
   }
 
   /**
-   * Opens the Login page from My Account.
+   * Opens the login page from the My Account dropdown.
    */
   async clickLogin(): Promise<void> {
-    await this.myAccountMenuTrigger.click();
-    await expect(this.loginLink, 'Login should appear in the My Account menu').toBeVisible();
+    await this.clickMyAccount();
+    await expect(this.loginLink, 'Login should be visible in the account menu').toBeVisible();
     await this.loginLink.click();
+    await this.page.waitForURL(/route=account\/login/);
   }
 
   /**
-   * Logs out the current customer.
+   * Opens the logout confirmation from the authenticated account menu.
    */
   async clickLogout(): Promise<void> {
-    await this.myAccountMenuTrigger.click();
-    await expect(this.logoutLink, 'Logout should appear in the My Account menu').toBeVisible();
+    await this.clickMyAccount();
+    await expect(this.logoutLink, 'Logout should be visible in the account menu').toBeVisible();
     await this.logoutLink.click();
+    await this.page.waitForURL(/route=account\/logout/);
   }
 
   /**
-   * Searches the catalogue for a product.
-   * @param productName - Product name to search for
+   * Searches the product catalog.
+   * @param productName - Known product name to search for
    */
   async searchProduct(productName: string): Promise<void> {
     await this.searchInput.fill(productName);
     await this.searchInput.press('Enter');
-    await this.page.getByRole('heading', { name: `Search - ${productName}` }).waitFor({ state: 'visible' });
+    await this.page.waitForURL(/route=product\/search/);
   }
 
   /**
-   * Opens the shopping cart from the storefront navigation.
+   * Opens the shopping cart.
    */
   async openShoppingCart(): Promise<void> {
     await this.shoppingCartLink.click();
+    await this.page.waitForURL(/route=checkout\/cart/);
   }
 }

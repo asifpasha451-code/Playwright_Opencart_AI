@@ -1,86 +1,87 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 
 export class CartPage {
   // Locators
+  private readonly page: Page;
   private readonly cartHeading: Locator;
+  private readonly totalRows: Locator;
 
-  constructor(private readonly page: Page) {
+  constructor(page: Page) {
+    this.page = page;
+
     // Initialize locators with CSS selectors
-    this.cartHeading = page.getByRole('heading', { name: /^Shopping Cart/ });
+    this.cartHeading = page.getByRole('heading', { name: 'Shopping Cart', exact: false, level: 1 });
+    this.totalRows = page.getByRole('row').filter({ hasText: /^\s*Total/ });
   }
 
   /**
-   * Verifies the shopping cart page is displayed.
-   * @returns Promise<boolean> - true if the cart page is displayed
+   * Waits for the shopping-cart page.
+   */
+  async waitForCartPage(): Promise<void> {
+    await this.cartHeading.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Verifies the shopping-cart page is displayed.
+   * @returns Promise<boolean> - true when the cart heading is visible
    */
   async isCartPageExists(): Promise<boolean> {
     return this.cartHeading.isVisible();
   }
 
-  async waitForCartPage(): Promise<void> {
-    await expect(this.cartHeading, 'The shopping cart should open after adding the product').toBeVisible();
-  }
-
-  async waitForProduct(productName: string): Promise<void> {
-    await expect(this.getProductRow(productName), `${productName} should appear in the cart`).toBeVisible();
-  }
-
   /**
-   * Checks whether the named product appears in a cart row.
-   * @param productName - Product to find
-   * @returns Promise<boolean> - true if the product is in the cart
+   * Verifies a product is present in the cart.
+   * @param productName - Expected cart product
+   * @returns Promise<boolean> - true when a matching product row is visible
    */
   async hasProduct(productName: string): Promise<boolean> {
-    const productRow = this.getProductRow(productName);
-    return (await productRow.count()) > 0;
+    return this.productRow(productName).isVisible();
   }
 
   /**
-   * Reads the product quantity from its cart row.
+   * Waits for a product row in the cart.
+   * @param productName - Expected cart product
+   */
+  async waitForProduct(productName: string): Promise<void> {
+    await this.productRow(productName).waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Reads the quantity stored in the matching cart row.
    * @param productName - Product to inspect
-   * @returns Promise<string> - Quantity displayed in the cart
+   * @returns Promise<string> - Cart quantity
    */
   async getProductQuantity(productName: string): Promise<string> {
-    const productRow = this.getProductRow(productName);
-    return productRow.locator('input[name^="quantity"]').inputValue();
+    return this.productRow(productName).locator('input[name="quantity"]').inputValue();
   }
 
   /**
-   * Reads the product unit price from its cart row.
+   * Reads the unit price in the matching cart row.
    * @param productName - Product to inspect
-   * @returns Promise<string> - Unit price displayed in the cart
+   * @returns Promise<string> - Displayed unit price
    */
   async getProductUnitPrice(productName: string): Promise<string> {
-    const productRow = this.getProductRow(productName);
-    const priceCells = productRow.getByRole('cell').filter({ hasText: /^[€£$¥₹]\s?\d[\d,.]*$/ });
-    return (await priceCells.first().innerText()).trim();
+    return (await this.productRow(productName).locator('td').nth(3).innerText()).trim();
   }
 
   /**
-   * Reads the product line total from its cart row.
+   * Reads the line total in the matching cart row.
    * @param productName - Product to inspect
-   * @returns Promise<string> - Line total displayed in the cart
+   * @returns Promise<string> - Displayed line total
    */
   async getProductLineTotal(productName: string): Promise<string> {
-    const productRow = this.getProductRow(productName);
-    const priceCells = productRow.getByRole('cell').filter({ hasText: /^[€£$¥₹]\s?\d[\d,.]*$/ });
-    return (await priceCells.last().innerText()).trim();
+    return (await this.productRow(productName).locator('td').nth(4).innerText()).trim();
   }
 
   /**
-   * Reads the cart's Total row.
-   * @returns Promise<string> - Cart total displayed on the page
+   * Reads the final cart total.
+   * @returns Promise<string> - Displayed cart total
    */
   async getCartTotal(): Promise<string> {
-    const totalRow = this.page.getByRole('row').filter({
-      has: this.page.getByRole('cell', { name: /^Total:?$/ }),
-    });
-    return (await totalRow.getByRole('cell').nth(1).innerText()).trim();
+    return (await this.totalRows.last().locator('td').last().innerText()).trim();
   }
 
-  private getProductRow(productName: string): Locator {
-    return this.page.getByRole('row').filter({
-      has: this.page.getByRole('link', { name: productName, exact: true }),
-    });
+  private productRow(productName: string): Locator {
+    return this.page.locator('#shopping-cart tbody tr').filter({ hasText: productName });
   }
 }

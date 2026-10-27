@@ -1,63 +1,80 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 
 export class ProductPage {
   private readonly page: Page;
 
   // Locators
-  private readonly addToCartButton: Locator;
-  private readonly addToCartSuccess: Locator;
-  private readonly addedProductCartLink: Locator;
+  private readonly productHeading: Locator;
+  private readonly productPrice: Locator;
   private readonly quantityInput: Locator;
+  private readonly addToCartButton: Locator;
+  private readonly successMessage: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     // Initialize locators with CSS selectors
+    this.productHeading = page.getByRole('heading', { level: 1 });
+    this.productPrice = page.locator('#content h2').first();
+    this.quantityInput = page.locator('#input-quantity');
     this.addToCartButton = page.getByRole('button', { name: 'Add to Cart', exact: true });
-    this.addToCartSuccess = page.getByText('Success: You have added', { exact: false });
-    this.addedProductCartLink = page
-      .locator('.alert-success')
-      .getByRole('link', { name: /shopping cart/i });
-    this.quantityInput = page.locator('input[name="quantity"]');
+    this.successMessage = page.locator('.alert.alert-success');
   }
 
   /**
-   * Opens a product from search results.
-   * @param productName - Product name to open
+   * Verifies the product detail page is displayed.
+   * @returns Promise<boolean> - true when a product heading is visible
    */
-  async openProduct(productName: string): Promise<void> {
-    await this.page.getByRole('link', { name: productName, exact: true }).first().click();
-    await this.page.getByRole('heading', { name: productName, exact: true }).waitFor({ state: 'visible' });
+  async isProductPageExists(): Promise<boolean> {
+    return this.productHeading.isVisible();
   }
 
   /**
-   * Verifies the product details page is displayed.
-   * @param productName - Expected product name
-   * @returns Promise<boolean> - true if the product details are displayed
+   * Verifies the expected product detail page is displayed.
+   * @param productName - Expected product heading
+   * @returns Promise<boolean> - true when the heading exactly matches
    */
   async isProductDetailsPageExists(productName: string): Promise<boolean> {
-    return this.page.getByRole('heading', { name: productName, exact: true }).isVisible();
+    return this.page.getByRole('heading', { name: productName, exact: true, level: 1 }).isVisible();
   }
 
+  /**
+   * Reads the displayed product price.
+   * @returns Promise<string> - Product price as shown by OpenCart
+   */
   async getProductPrice(): Promise<string> {
-    const price = this.page.getByRole('heading', { name: /^[€£$¥₹]\s?\d[\d,.]*$/ }).first();
-    await expect(price, 'The selected product should display a currency price').toBeVisible();
-    return (await price.innerText()).trim();
+    return (await this.productPrice.innerText()).trim();
   }
 
   /**
-   * Adds the displayed product to the cart.
+   * Sets product quantity.
+   * @param quantity - Requested quantity
    */
-  async addToCart(quantity: string): Promise<void> {
+  async setQuantity(quantity: string): Promise<void> {
     await this.quantityInput.fill(quantity);
-    await this.addToCartButton.click();
-    await this.addToCartSuccess.waitFor({ state: 'visible' });
   }
 
   /**
-   * Opens the cart after adding the product.
+   * Adds the displayed product to the shopping cart.
    */
-  async openShoppingCart(): Promise<void> {
-    await this.addedProductCartLink.click({ noWaitAfter: true });
+  async addToCart(): Promise<void> {
+    await this.addToCartButton.click();
+    await this.successMessage.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Verifies the product-added confirmation.
+   * @returns Promise<boolean> - true when the success message is visible
+   */
+  async isSuccessMessageVisible(): Promise<boolean> {
+    return this.successMessage.isVisible();
+  }
+
+  /**
+   * Reads the product-added confirmation text.
+   * @returns Promise<string> - Message shown after adding the product
+   */
+  async getSuccessMessage(): Promise<string> {
+    return (await this.successMessage.innerText()).trim();
   }
 }

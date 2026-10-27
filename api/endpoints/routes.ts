@@ -49,4 +49,3 @@ export const Routes = {
 
     AUTH_LOGIN: '/auth/login'
 }
-
